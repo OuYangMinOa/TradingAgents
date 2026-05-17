@@ -23,9 +23,19 @@
 
 - Docker Desktop（PostgreSQL + Redis）
 - Go 1.22+
-- Python 3.11+
+- Python 3.11+（由 [uv](https://docs.astral.sh/uv/) 管理，自動安裝）
 - FinMind API Token（免費註冊：[finmindtrade.com](https://finmindtrade.com)）
 - 至少一個 LLM API Key（Gemini / Claude / OpenAI，擇一即可）
+
+安裝 uv（若尚未安裝）：
+
+```bash
+# macOS / Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows（PowerShell）
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
 
 ---
 
@@ -77,29 +87,29 @@ go run ./cmd/main.go   # 15:30 股價/法人、每小時 PTT、每2小時新聞
 
 ```bash
 cd agents
-pip install -r requirements.txt
+uv sync          # 建立 .venv 並安裝所有依賴
+uv sync --group dev  # 含開發依賴（pytest、ipython）
 ```
 
 ### 5. 執行 Python orchestrator
 
 ```bash
 cd agents
-python main.py
+uv run python main.py
 ```
 
-等待 Redis 訊號後自動觸發分析（Phase 2 開始後），或直接測試單一 Agent：
+等待 Redis 訊號後自動觸發分析，或直接測試 LLM 連線：
 
 ```bash
-python -c "
+cd agents
+uv run python -c "
 import asyncio
 from llm.factory import create_provider_from_settings
-from agents.technical_analyst import TechnicalAnalyst
 
 async def test():
     llm = create_provider_from_settings()
-    agent = TechnicalAnalyst(llm)
-    # 需要先有 DB 資料
-    print(repr(llm))
+    reply = await llm.chat('你是助手', '請用一句話介紹台積電')
+    print(reply)
 
 asyncio.run(test())
 "
@@ -176,9 +186,35 @@ tradingagents-tw/
 | Phase | 狀態 | 說明 |
 |-------|------|------|
 | Phase 1 | ✅ 完成 | Docker、Go 爬蟲、DB、LLM 抽象層 |
-| Phase 2 | 🔨 進行中 | 5 個 Analyst Agent |
-| Phase 3 | ⏳ 待開始 | Researcher 辯論、Trader、Risk、Orchestrator |
-| Phase 4 | ⏳ 待開始 | Backtrader 回測、Prompt 調優 |
+| Phase 2 | ✅ 完成 | 5 個 Analyst Agent |
+| Phase 3 | ✅ 完成 | Researcher 辯論、Trader、Risk、Orchestrator、報告輸出 |
+| Phase 4 | ✅ 完成 | Backtrader 回測、績效指標、基本面資料補全 |
+
+---
+
+## 回測
+
+回測使用 `daily_recommendations` 表中已核准的訊號，對歷史股價做信號重播。
+
+**前置條件**：需先有資料（Go collector 拉過歷史資料）且已有 Agent 跑過的選股建議。
+
+```bash
+cd agents
+
+# 回測過去一年（預設）
+uv run python ../scripts/backtest.py
+
+# 指定期間與個股
+uv run python ../scripts/backtest.py --start 2024-01-01 --end 2024-12-31 --stocks 2330,2454,2382
+
+# 指定初始資金（預設 100 萬）
+uv run python ../scripts/backtest.py --start 2024-01-01 --end 2024-12-31 --cash 5000000
+
+# 輸出 Markdown 報告
+uv run python ../scripts/backtest.py --output reports/my_backtest.md
+```
+
+回測輸出指標：總報酬率、年化報酬、夏普比率、最大回撤、勝率、獲利因子。
 
 ---
 

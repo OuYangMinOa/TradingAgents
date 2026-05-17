@@ -53,3 +53,21 @@ WATCHLIST: list[str] = [
     "2357",  # 華碩
     "2382",  # 廣達
 ]
+
+STOCK_META: dict[str, dict] = {
+    "2330": {"name": "台積電",    "industry": "半導體"},
+    "2317": {"name": "鴻海",      "industry": "電子製造"},
+    "2454": {"name": "聯發科",    "industry": "IC設計"},
+    "2308": {"name": "台達電",    "industry": "電子零組件"},
+    "2881": {"name": "富邦金",    "industry": "金融"},
+    "2882": {"name": "國泰金",    "industry": "金融"},
+    "2412": {"name": "中華電",    "industry": "電信"},
+    "2303": {"name": "聯電",      "industry": "半導體"},
+    "3711": {"name": "日月光投控","industry": "半導體封測"},
+    "2002": {"name": "中鋼",      "industry": "鋼鐵"},
+    "1301": {"name": "台塑",      "industry": "石化"},
+    "2886": {"name": "兆豐金",    "industry": "金融"},
+    "2891": {"name": "中信金",    "industry": "金融"},
+    "2357": {"name": "華碩",      "industry": "電腦及周邊"},
+    "2382": {"name": "廣達",      "industry": "伺服器/筆電"},
+}

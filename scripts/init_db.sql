@@ -70,6 +70,38 @@ CREATE TABLE IF NOT EXISTS daily_recommendations (
     created_at    TIMESTAMP DEFAULT NOW()
 );
 
+-- Phase 4: financial data tables (fetched via Python FinMind client)
+CREATE TABLE IF NOT EXISTS stock_revenue (
+    id          SERIAL PRIMARY KEY,
+    stock_id    VARCHAR(10) NOT NULL,
+    date        DATE        NOT NULL,
+    revenue     BIGINT,
+    revenue_mom DECIMAL(8, 4),
+    revenue_yoy DECIMAL(8, 4),
+    fetched_at  TIMESTAMP DEFAULT NOW(),
+    UNIQUE (stock_id, date)
+);
+
+CREATE TABLE IF NOT EXISTS stock_financials (
+    id         SERIAL PRIMARY KEY,
+    stock_id   VARCHAR(10) NOT NULL,
+    date       DATE        NOT NULL,
+    dataset    VARCHAR(50) NOT NULL,
+    data       JSONB,
+    fetched_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE (stock_id, date, dataset)
+);
+
+CREATE TABLE IF NOT EXISTS stock_dividends (
+    id                          SERIAL PRIMARY KEY,
+    stock_id                    VARCHAR(10)   NOT NULL,
+    date                        DATE          NOT NULL,
+    cash_earnings_distribution  DECIMAL(10, 4),
+    stock_earnings_distribution DECIMAL(10, 4),
+    fetched_at                  TIMESTAMP DEFAULT NOW(),
+    UNIQUE (stock_id, date)
+);
+
 CREATE INDEX IF NOT EXISTS idx_stock_daily_stock_date   ON stock_daily (stock_id, date DESC);
 CREATE INDEX IF NOT EXISTS idx_institutional_stock_date ON institutional_investors (stock_id, date DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_reports_stock_date ON agent_reports (stock_id, report_date DESC);
