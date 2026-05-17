@@ -2,7 +2,7 @@
 name = "tradingagents-tw"
 version = "0.1.0"
 description = "台股多代理人 LLM 選股系統"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     # LLM providers
     "anthropic>=0.40.0",
