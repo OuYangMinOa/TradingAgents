@@ -5,7 +5,7 @@ The models are serialised to JSONB and stored in agent_reports.
 """
 
 from typing import Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class FundamentalReport(BaseModel):
@@ -64,10 +64,26 @@ class ResearchReport(BaseModel):
 class TraderDecision(BaseModel):
     action: Literal["買進", "加碼", "持有", "減碼", "賣出", "不動作"]
     position_size: float = Field(ge=0.0, le=1.0, description="佔總資金比例")
-    entry_price_range: tuple[float, float] = Field(description="建議進場價區間")
+    entry_price_low: float = Field(default=0.0, description="建議進場價區間下限")
+    entry_price_high: float = Field(default=0.0, description="建議進場價區間上限")
     stop_loss: float
     take_profit: float
     rationale: str = Field(description="決策理由，100字內")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _compat_entry_price_range(cls, data: dict) -> dict:
+        # Gemini sometimes returns the old field name; unpack it into the new fields.
+        if isinstance(data, dict) and "entry_price_range" in data:
+            rng = data.pop("entry_price_range")
+            if isinstance(rng, (list, tuple)) and len(rng) == 2:
+                data.setdefault("entry_price_low",  float(rng[0]))
+                data.setdefault("entry_price_high", float(rng[1]))
+        return data
+
+    @property
+    def entry_price_range(self) -> tuple[float, float]:
+        return (self.entry_price_low, self.entry_price_high)
 
 
 class RiskDecision(BaseModel):

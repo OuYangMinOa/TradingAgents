@@ -9,6 +9,7 @@ import (
 	"github.com/tradingagents-tw/datacollector/internal/config"
 	"github.com/tradingagents-tw/datacollector/internal/db"
 	"github.com/tradingagents-tw/datacollector/internal/finmind"
+	"github.com/tradingagents-tw/datacollector/internal/models"
 	"github.com/tradingagents-tw/datacollector/internal/news"
 	"github.com/tradingagents-tw/datacollector/internal/ptt"
 	redispub "github.com/tradingagents-tw/datacollector/internal/redis"
@@ -66,11 +67,21 @@ func (s *Scheduler) RunNow() {
 	s.runNewsCrawl()
 }
 
+// lastTradingDay returns the most recent weekday date string (Mon–Fri).
+// On weekends it steps back to Friday so --run-now still fetches real data.
+func lastTradingDay() string {
+	t := time.Now()
+	for t.Weekday() == time.Saturday || t.Weekday() == time.Sunday {
+		t = t.AddDate(0, 0, -1)
+	}
+	return t.Format("2006-01-02")
+}
+
 func (s *Scheduler) runDailyCollection() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
-	today := time.Now().Format("2006-01-02")
+	today := lastTradingDay()
 	log.Printf("scheduler: daily collection start for %s", today)
 
 	for _, stockID := range s.cfg.WatchList {
@@ -108,9 +119,27 @@ func (s *Scheduler) runPTTCrawl() {
 	defer cancel()
 
 	log.Println("scheduler: ptt crawl start")
-	posts, err := s.pttCrawler.FetchLatest(ctx, 50)
+
+	const maxAttempts = 3
+	var posts []models.PTTPost
+	var err error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		posts, err = s.pttCrawler.FetchLatest(ctx, 50)
+		if err == nil {
+			break
+		}
+		log.Printf("ptt: fetch attempt %d/%d failed: %v", attempt, maxAttempts, err)
+		if attempt < maxAttempts {
+			select {
+			case <-ctx.Done():
+				log.Printf("ptt: context cancelled, giving up")
+				return
+			case <-time.After(10 * time.Second):
+			}
+		}
+	}
 	if err != nil {
-		log.Printf("ptt: fetch failed: %v", err)
+		log.Printf("ptt: all %d attempts failed, skipping", maxAttempts)
 		return
 	}
 

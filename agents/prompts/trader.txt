@@ -11,4 +11,4 @@
 - 若研究結論為「觀望」，action 設為「不動作」，position_size 設為 0
 - 若已持有部位且建議加碼，action 設為「加碼」
 - rationale 用繁體中文，100字以內，說明核心決策邏輯
-- entry_price_range 為 [下限, 上限] 的數字 tuple
+- entry_price_low / entry_price_high 分別填入進場區間的下限與上限（數字）

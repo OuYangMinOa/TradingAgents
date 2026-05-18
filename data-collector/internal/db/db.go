@@ -101,3 +101,110 @@ func (d *DB) UpsertNewsArticles(ctx context.Context, articles []models.NewsArtic
 	}
 	return nil
 }
+
+// --- inspect queries ---
+
+type TableCount struct {
+	Table string
+	Rows  int64
+}
+
+func (d *DB) QueryTableCounts(ctx context.Context) ([]TableCount, error) {
+	tables := []string{"stock_daily", "institutional_investors", "news_articles", "ptt_posts"}
+	out := make([]TableCount, 0, len(tables))
+	for _, t := range tables {
+		var n int64
+		err := d.pool.QueryRow(ctx, "SELECT COUNT(*) FROM "+t).Scan(&n)
+		if err != nil {
+			return nil, fmt.Errorf("count %s: %w", t, err)
+		}
+		out = append(out, TableCount{Table: t, Rows: n})
+	}
+	return out, nil
+}
+
+func (d *DB) QueryLatestPrices(ctx context.Context) ([]models.StockPrice, error) {
+	rows, err := d.pool.Query(ctx, `
+		SELECT DISTINCT ON (stock_id) stock_id, date, open, high, low, close, volume
+		FROM stock_daily
+		ORDER BY stock_id, date DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []models.StockPrice
+	for rows.Next() {
+		var p models.StockPrice
+		if err := rows.Scan(&p.StockID, &p.Date, &p.Open, &p.High, &p.Low, &p.Close, &p.Volume); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+func (d *DB) QueryLatestInstitutional(ctx context.Context) ([]models.InstitutionalDay, error) {
+	rows, err := d.pool.Query(ctx, `
+		SELECT DISTINCT ON (stock_id)
+			stock_id, date, foreign_buy, foreign_sell, trust_buy, trust_sell, dealer_buy, dealer_sell
+		FROM institutional_investors
+		ORDER BY stock_id, date DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []models.InstitutionalDay
+	for rows.Next() {
+		var d models.InstitutionalDay
+		if err := rows.Scan(&d.StockID, &d.Date,
+			&d.ForeignBuy, &d.ForeignSell,
+			&d.TrustBuy, &d.TrustSell,
+			&d.DealerBuy, &d.DealerSell); err != nil {
+			return nil, err
+		}
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
+func (d *DB) QueryLatestNews(ctx context.Context, limit int) ([]models.NewsArticle, error) {
+	rows, err := d.pool.Query(ctx, `
+		SELECT source, title, url, published_at
+		FROM news_articles
+		ORDER BY published_at DESC
+		LIMIT $1`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []models.NewsArticle
+	for rows.Next() {
+		var a models.NewsArticle
+		if err := rows.Scan(&a.Source, &a.Title, &a.URL, &a.PublishedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, a)
+	}
+	return out, rows.Err()
+}
+
+func (d *DB) QueryLatestPTTPosts(ctx context.Context, limit int) ([]models.PTTPost, error) {
+	rows, err := d.pool.Query(ctx, `
+		SELECT article_id, title, author, push_count, boo_count, posted_at
+		FROM ptt_posts
+		ORDER BY posted_at DESC
+		LIMIT $1`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []models.PTTPost
+	for rows.Next() {
+		var p models.PTTPost
+		if err := rows.Scan(&p.ArticleID, &p.Title, &p.Author, &p.PushCount, &p.BooCount, &p.PostedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}

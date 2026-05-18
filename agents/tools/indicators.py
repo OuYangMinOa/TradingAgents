@@ -6,8 +6,10 @@ import pandas as pd
 import pandas_ta as ta
 
 
-def _safe(series: pd.Series, idx: int = -1) -> float | None:
-    """Extract a float from a Series, returning None for NaN."""
+def _safe(series: pd.Series | None, idx: int = -1) -> float | None:
+    """Extract a float from a Series, returning None for NaN or missing data."""
+    if series is None:
+        return None
     try:
         val = series.iloc[idx]
         return None if pd.isna(val) else float(val)

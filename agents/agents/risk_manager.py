@@ -100,7 +100,7 @@ def _format_decision(stock_id: str, d: TraderDecision) -> str:
     return (
         f"動作：{d.action}\n"
         f"建議倉位：{d.position_size:.0%}\n"
-        f"進場區間：{d.entry_price_range}\n"
+        f"進場區間：{d.entry_price_low} ~ {d.entry_price_high}\n"
         f"停損：{d.stop_loss}\n"
         f"停利：{d.take_profit}\n"
         f"理由：{d.rationale}"
